@@ -3,15 +3,16 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/Maddoxx88/garnet/store"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/Maddoxx88/garnet/store"
 )
 
 func main() {
 	db := store.New()
-	fmt.Println("Garnet ready. Type commands (SET key val, GET key):")
+	fmt.Println("Garnet ready. Type commands (SET key val EX, GET key):")
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -59,9 +60,9 @@ func main() {
 			}
 			deleted := db.Del(parts[1])
 			if deleted {
-				fmt.Println("1")
+				fmt.Println("key deleted ✅")
 			} else {
-				fmt.Println("0")
+				fmt.Println("error deleting key ❌")
 			}
 
 		case "EXISTS":
