@@ -56,9 +56,9 @@ func main() {
 				continue
 			}
 			if db.Exists(parts[1]) {
-				fmt.Println("1")
+				fmt.Println("yes")
 			} else {
-				fmt.Println("0")
+				fmt.Println("no")
 			}
 
 		case "KEYS":
