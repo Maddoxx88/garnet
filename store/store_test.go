@@ -43,3 +43,16 @@ func TestDel(t *testing.T) {
 		t.Error("expected key to be gone")
 	}
 }
+
+func TestTTLLoopCleansUp(t *testing.T) {
+	db := New()
+	db.Set("ephemeral", "bye", 1)
+	db.StartTTLLoop(500 * time.Millisecond)
+
+	time.Sleep(2 * time.Second)
+
+	_, ok := db.Get("ephemeral")
+	if ok {
+		t.Fatal("key should have been cleaned up")
+	}
+}
