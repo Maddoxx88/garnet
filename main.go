@@ -3,16 +3,18 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/Maddoxx88/garnet/store"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/Maddoxx88/garnet/store"
+	"time"
 )
 
 func main() {
 	db := store.New()
-	fmt.Println("Garnet ready. Type commands (SET key val EX, GET key):")
+	db.StartTTLLoop(1 * time.Second)
+
+	fmt.Println("Garnet v0.1 ready to accept commands. Try: SET key value EX 5, GET key")
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
