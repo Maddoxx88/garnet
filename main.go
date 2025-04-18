@@ -38,6 +38,42 @@ func main() {
 			} else {
 				fmt.Println("(nil)")
 			}
+		case "DEL":
+			if len(parts) != 2 {
+				fmt.Println("Usage: DEL key")
+				continue
+			}
+			deleted := db.Del(parts[1])
+			if deleted {
+				fmt.Println("1")
+			} else {
+				fmt.Println("0")
+			}
+
+		case "EXISTS":
+			if len(parts) != 2 {
+				fmt.Println("Usage: EXISTS key")
+				continue
+			}
+			if db.Exists(parts[1]) {
+				fmt.Println("1")
+			} else {
+				fmt.Println("0")
+			}
+
+		case "KEYS":
+			keys := db.Keys()
+			for _, k := range keys {
+				fmt.Println(k)
+			}
+
+		case "FLUSHALL":
+			db.FlushAll()
+			fmt.Println("OK")
+
+		case "PING":
+			fmt.Println("PONG")
+
 		default:
 			fmt.Println("Unknown command:", parts[0])
 		}
