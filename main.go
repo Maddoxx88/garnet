@@ -3,10 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"os"
-	"strings"
-
 	"github.com/Maddoxx88/garnet/store"
+	"os"
+	"strconv"
+	"strings"
 )
 
 func main() {
@@ -22,11 +22,25 @@ func main() {
 
 		switch parts[0] {
 		case "SET":
-			if len(parts) != 3 {
-				fmt.Println("Usage: SET key value")
+			if len(parts) < 3 {
+				fmt.Println("Usage: SET key value [EX seconds]")
 				continue
 			}
-			db.Set(parts[1], parts[2])
+
+			key := parts[1]
+			val := parts[2]
+			ttl := 0
+
+			if len(parts) == 5 && strings.ToUpper(parts[3]) == "EX" {
+				if parsed, err := strconv.Atoi(parts[4]); err == nil {
+					ttl = parsed
+				} else {
+					fmt.Println("Invalid TTL value")
+					continue
+				}
+			}
+
+			db.Set(key, val, ttl)
 			fmt.Println("OK")
 		case "GET":
 			if len(parts) != 2 {
