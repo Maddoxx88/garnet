@@ -24,6 +24,20 @@ func main() {
 		}
 
 		switch parts[0] {
+		case "HELP", "/h":
+			fmt.Println("Available Commands:")
+			fmt.Println("  SET key value [EX seconds]   → Set a key with optional expiration (TTL)")
+			fmt.Println("  GET key                      → Get the value of a key")
+			fmt.Println("  DEL key                      → Delete a key")
+			fmt.Println("  EXISTS key                   → Check if a key exists")
+			fmt.Println("  KEYS                         → List all keys")
+			fmt.Println("  FLUSHALL                     → Delete all keys")
+			fmt.Println("  PING                         → Health check (returns PONG)")
+			fmt.Println("  HELP or /h                   → Show this help message")
+			fmt.Println("  EXIT or QUIT or /exit        → Exit Garnet")
+		case "EXIT", "QUIT", "/exit":
+			fmt.Println("Goodbye 👋")
+			os.Exit(0)
 		case "SET":
 			if len(parts) < 3 {
 				fmt.Println("Usage: SET key value [EX seconds]")
@@ -92,7 +106,8 @@ func main() {
 			fmt.Println("PONG")
 
 		default:
-			fmt.Println("Unknown command:", parts[0])
+			fmt.Println("Unknown command. Type HELP or /h to see available commands.")
+
 		}
 	}
 }
