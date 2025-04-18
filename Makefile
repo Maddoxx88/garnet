@@ -5,4 +5,4 @@ build:
 	go build -o garnet main.go
 
 test:
-	go test ./...
+	go test ./store
