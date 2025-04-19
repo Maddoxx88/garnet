@@ -3,111 +3,113 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/Maddoxx88/garnet/store"
-	"os"
-	"strconv"
+	"net"
 	"strings"
-	"time"
+
+	"github.com/Maddoxx88/garnet/store"
 )
 
-func main() {
-	db := store.New()
-	db.StartTTLLoop(1 * time.Second)
+func handleConnection(conn net.Conn, db *store.GarnetStore) {
+	defer conn.Close()
+	conn.Write([]byte("Welcome to Garnet!\n"))
 
-	fmt.Println("Garnet v0.1 ready to accept commands. Try: SET key value EX 5, GET key")
-
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-		parts := strings.Fields(scanner.Text())
+		input := scanner.Text()
+		parts := strings.Fields(input)
 		if len(parts) == 0 {
 			continue
 		}
 
-		switch parts[0] {
-		case "HELP", "/h":
-			fmt.Println("Available Commands:")
-			fmt.Println("  SET key value [EX seconds]   → Set a key with optional expiration (TTL)")
-			fmt.Println("  GET key                      → Get the value of a key")
-			fmt.Println("  DEL key                      → Delete a key")
-			fmt.Println("  EXISTS key                   → Check if a key exists")
-			fmt.Println("  KEYS                         → List all keys")
-			fmt.Println("  FLUSHALL                     → Delete all keys")
-			fmt.Println("  PING                         → Health check (returns PONG)")
-			fmt.Println("  HELP or /h                   → Show this help message")
-			fmt.Println("  EXIT or QUIT or /exit        → Exit Garnet")
-		case "EXIT", "QUIT", "/exit":
-			fmt.Println("Goodbye 👋")
-			os.Exit(0)
+		switch strings.ToUpper(parts[0]) {
+		case "PING":
+			conn.Write([]byte("PONG\n"))
 		case "SET":
 			if len(parts) < 3 {
-				fmt.Println("Usage: SET key value [EX seconds]")
+				conn.Write([]byte("Usage: SET key value [EX seconds]\n"))
 				continue
 			}
-
-			key := parts[1]
-			val := parts[2]
+			key, val := parts[1], parts[2]
 			ttl := 0
-
 			if len(parts) == 5 && strings.ToUpper(parts[3]) == "EX" {
-				if parsed, err := strconv.Atoi(parts[4]); err == nil {
-					ttl = parsed
-				} else {
-					fmt.Println("Invalid TTL value")
-					continue
-				}
+				fmt.Sscanf(parts[4], "%d", &ttl)
 			}
-
 			db.Set(key, val, ttl)
-			fmt.Println("OK")
+			conn.Write([]byte("OK\n"))
 		case "GET":
 			if len(parts) != 2 {
-				fmt.Println("Usage: GET key")
+				conn.Write([]byte("Usage: GET key\n"))
 				continue
 			}
 			if val, ok := db.Get(parts[1]); ok {
-				fmt.Println(val)
+				conn.Write([]byte(val + "\n"))
 			} else {
-				fmt.Println("(nil)")
+				conn.Write([]byte("(nil)\n"))
 			}
 		case "DEL":
 			if len(parts) != 2 {
-				fmt.Println("Usage: DEL key")
+				conn.Write([]byte("Usage: DEL key\n"))
 				continue
 			}
-			deleted := db.Del(parts[1])
-			if deleted {
-				fmt.Println("key deleted ✅")
+			if db.Del(parts[1]) {
+				conn.Write([]byte("1\n"))
 			} else {
-				fmt.Println("error deleting key ❌")
+				conn.Write([]byte("0\n"))
 			}
-
 		case "EXISTS":
 			if len(parts) != 2 {
-				fmt.Println("Usage: EXISTS key")
+				conn.Write([]byte("Usage: EXISTS key\n"))
 				continue
 			}
 			if db.Exists(parts[1]) {
-				fmt.Println("yes")
+				conn.Write([]byte("1\n"))
 			} else {
-				fmt.Println("no")
+				conn.Write([]byte("0\n"))
 			}
-
 		case "KEYS":
 			keys := db.Keys()
 			for _, k := range keys {
-				fmt.Println(k)
+				conn.Write([]byte(k + "\n"))
 			}
-
 		case "FLUSHALL":
 			db.FlushAll()
-			fmt.Println("OK")
-
-		case "PING":
-			fmt.Println("PONG")
-
+			conn.Write([]byte("OK\n"))
+		case "HELP", "/H":
+			conn.Write([]byte("Available Commands:\n"))
+			conn.Write([]byte("SET key value [EX seconds]\n"))
+			conn.Write([]byte("GET key\n"))
+			conn.Write([]byte("DEL key\n"))
+			conn.Write([]byte("EXISTS key\n"))
+			conn.Write([]byte("KEYS\n"))
+			conn.Write([]byte("FLUSHALL\n"))
+			conn.Write([]byte("PING\n"))
+			conn.Write([]byte("EXIT or QUIT or /exit\n"))
+		case "EXIT", "QUIT", "/EXIT":
+			conn.Write([]byte("Goodbye 👋\n"))
+			return
 		default:
-			fmt.Println("Unknown command. Type HELP or /h to see available commands.")
-
+			conn.Write([]byte("Unknown command. Type HELP for a list.\n"))
 		}
+	}
+}
+
+func main() {
+	db := store.New()
+	db.StartTTLLoop(1)
+
+	// Start TCP server
+	listener, err := net.Listen("tcp", ":6379")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Garnet TCP server is listening on port 6379...")
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Connection error:", err)
+			continue
+		}
+		go handleConnection(conn, db)
 	}
 }
