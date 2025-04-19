@@ -9,7 +9,10 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const GarnetVersion = "v0.1.0"
 
 func handleConnection(conn net.Conn, db *store.GarnetStore) {
 	defer conn.Close()
@@ -69,6 +72,7 @@ func handleConnection(conn net.Conn, db *store.GarnetStore) {
 
 func main() {
 	db := store.New()
+	fmt.Printf("🔴 Garnet %s started at %s\n", GarnetVersion, time.Now().Format(time.RFC1123))
 	db.StartTTLLoop(1)
 
 	// Start TCP server
