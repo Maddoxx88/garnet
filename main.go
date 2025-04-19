@@ -3,92 +3,66 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"net"
-	"strings"
-
+	"github.com/Maddoxx88/garnet/protocol"
 	"github.com/Maddoxx88/garnet/store"
+	"io"
+	"net"
+	"strconv"
+	"strings"
 )
 
 func handleConnection(conn net.Conn, db *store.GarnetStore) {
 	defer conn.Close()
 	conn.Write([]byte("Welcome to Garnet!\n"))
 
-	scanner := bufio.NewScanner(conn)
-	for scanner.Scan() {
-		input := scanner.Text()
-		parts := strings.Fields(input)
-		if len(parts) == 0 {
+	// Replace scanner loop:
+	reader := bufio.NewReader(conn)
+	for {
+		cmd, err := protocol.ParseRESP(reader)
+		if err != nil {
+			if err == io.EOF {
+				return
+			}
+			conn.Write([]byte("-ERR invalid command\r\n"))
 			continue
 		}
 
-		switch strings.ToUpper(parts[0]) {
+		if len(cmd) == 0 {
+			conn.Write([]byte("-ERR empty command\r\n"))
+			continue
+		}
+
+		switch strings.ToUpper(cmd[0]) {
 		case "PING":
-			conn.Write([]byte("PONG\n"))
+			conn.Write([]byte("+PONG\r\n"))
+
 		case "SET":
-			if len(parts) < 3 {
-				conn.Write([]byte("Usage: SET key value [EX seconds]\n"))
+			if len(cmd) < 3 {
+				conn.Write([]byte("-ERR wrong number of arguments for SET\r\n"))
 				continue
 			}
-			key, val := parts[1], parts[2]
+			key, val := cmd[1], cmd[2]
 			ttl := 0
-			if len(parts) == 5 && strings.ToUpper(parts[3]) == "EX" {
-				fmt.Sscanf(parts[4], "%d", &ttl)
+			if len(cmd) == 5 && strings.ToUpper(cmd[3]) == "EX" {
+				ttl, _ = strconv.Atoi(cmd[4])
 			}
 			db.Set(key, val, ttl)
-			conn.Write([]byte("OK\n"))
+			conn.Write([]byte("+OK\r\n"))
+
 		case "GET":
-			if len(parts) != 2 {
-				conn.Write([]byte("Usage: GET key\n"))
+			if len(cmd) != 2 {
+				conn.Write([]byte("-ERR wrong number of arguments for GET\r\n"))
 				continue
 			}
-			if val, ok := db.Get(parts[1]); ok {
-				conn.Write([]byte(val + "\n"))
+			val, ok := db.Get(cmd[1])
+			if ok {
+				conn.Write([]byte("$" + strconv.Itoa(len(val)) + "\r\n" + val + "\r\n"))
 			} else {
-				conn.Write([]byte("(nil)\n"))
+				conn.Write([]byte("$-1\r\n"))
 			}
-		case "DEL":
-			if len(parts) != 2 {
-				conn.Write([]byte("Usage: DEL key\n"))
-				continue
-			}
-			if db.Del(parts[1]) {
-				conn.Write([]byte("1\n"))
-			} else {
-				conn.Write([]byte("0\n"))
-			}
-		case "EXISTS":
-			if len(parts) != 2 {
-				conn.Write([]byte("Usage: EXISTS key\n"))
-				continue
-			}
-			if db.Exists(parts[1]) {
-				conn.Write([]byte("1\n"))
-			} else {
-				conn.Write([]byte("0\n"))
-			}
-		case "KEYS":
-			keys := db.Keys()
-			for _, k := range keys {
-				conn.Write([]byte(k + "\n"))
-			}
-		case "FLUSHALL":
-			db.FlushAll()
-			conn.Write([]byte("OK\n"))
-		case "HELP", "/H":
-			conn.Write([]byte("Available Commands:\n"))
-			conn.Write([]byte("SET key value [EX seconds]\n"))
-			conn.Write([]byte("GET key\n"))
-			conn.Write([]byte("DEL key\n"))
-			conn.Write([]byte("EXISTS key\n"))
-			conn.Write([]byte("KEYS\n"))
-			conn.Write([]byte("FLUSHALL\n"))
-			conn.Write([]byte("PING\n"))
-			conn.Write([]byte("EXIT or QUIT or /exit\n"))
-		case "EXIT", "QUIT", "/EXIT":
-			conn.Write([]byte("Goodbye 👋\n"))
-			return
+
 		default:
-			conn.Write([]byte("Unknown command. Type HELP for a list.\n"))
+			conn.Write([]byte("-ERR unknown command\r\n"))
 		}
 	}
 }
