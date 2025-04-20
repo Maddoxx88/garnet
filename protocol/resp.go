@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// ParseRESP reads and parses a RESP-formatted command
 func ParseRESP(reader *bufio.Reader) ([]string, error) {
 	line, err := reader.ReadString('\n')
 	if err != nil {
@@ -15,27 +14,37 @@ func ParseRESP(reader *bufio.Reader) ([]string, error) {
 	}
 
 	if len(line) == 0 || line[0] != '*' {
-		return nil, fmt.Errorf("invalid RESP array")
+		return nil, fmt.Errorf("invalid RESP format")
 	}
 
 	count, err := strconv.Atoi(strings.TrimSpace(line[1:]))
 	if err != nil {
-		return nil, fmt.Errorf("invalid array count: %v", err)
+		return nil, err
 	}
 
 	parts := make([]string, 0, count)
 	for i := 0; i < count; i++ {
-		_, err := reader.ReadString('\n') // skip $N line
+		prefix, err := reader.ReadString('\n')
 		if err != nil {
 			return nil, err
 		}
 
-		part, err := reader.ReadString('\n')
+		if len(prefix) == 0 || prefix[0] != '$' {
+			return nil, fmt.Errorf("invalid bulk string prefix")
+		}
+
+		length, err := strconv.Atoi(strings.TrimSpace(prefix[1:]))
 		if err != nil {
 			return nil, err
 		}
 
-		parts = append(parts, strings.TrimSpace(part))
+		data := make([]byte, length+2) // +2 for \r\n
+		_, err = reader.Read(data)
+		if err != nil {
+			return nil, err
+		}
+
+		parts = append(parts, string(data[:length]))
 	}
 
 	return parts, nil
