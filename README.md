@@ -1,3 +1,3 @@
 # garnet
 
-redis like key value store replacement
+redis like kv store replacement
